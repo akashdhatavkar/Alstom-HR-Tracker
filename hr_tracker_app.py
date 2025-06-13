@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from io import BytesIO
+import xlsxwriter
+
 
 st.set_page_config(layout="wide")
 
@@ -101,26 +104,20 @@ st.markdown(
 )
 
 ## Drop Down User input
-col1, col2, col3 = st.columns(3)
+with st.sidebar.expander("🔍 Filter Options", expanded=True):
+    st.markdown("### Filters", unsafe_allow_html=True)
 
-with col1:
-    st.markdown("<div style='font-family: Arial, sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>Function</div>", unsafe_allow_html=True)
     function = sorted(set(df_all['Function'].tolist()))
     function.insert(0, "All")
-    selected_functions = st.multiselect("", options=function, default=["All"])
+    selected_functions = st.multiselect("Function", options=function, default=["All"])
 
-with col2:
-    st.markdown("<div style='font-family: Arial, sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>Normalized Role</div>", unsafe_allow_html=True)
     role = sorted(set(df_all['Normalized Role'].tolist()))
     role.insert(0, "All")
-    selected_roles = st.multiselect("", options=role, default=["All"])
+    selected_roles = st.multiselect("Normalized Role", options=role, default=["All"])
 
-with col3:
-    st.markdown("<div style='font-family: Arial, sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>Site</div>", unsafe_allow_html=True)
     site = sorted(set(df_all['Site'].tolist()))
     site.insert(0, "All")
-    selected_sites = st.multiselect("", options=site, default=["All"])
-
+    selected_sites = st.multiselect("Site", options=site, default=["All"])
 
 
 ## Apply Function filter Criteria
@@ -233,3 +230,35 @@ st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
 st.write("<div style='font-family: Arial, sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>Employees Availability Data</div>", unsafe_allow_html=True)
 st.write(filtered_employees_merged)
 
+
+## Function to convert DataFrame to Excel and return bytes
+st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+st.write("<div style='font-family: Arial, sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>Download Raw Data</div>", unsafe_allow_html=True)
+
+
+def to_excel_multi(df_dict):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        for sheet_name, df in df_dict.items():
+            df.to_excel(writer, index=False, sheet_name=sheet_name[:31])  # Excel sheet names max length = 31
+        writer.close()
+    processed_data = output.getvalue()
+    return processed_data
+
+# Dictionary of dataframes to export
+dfs_to_export = {
+    'Permanent Employees': df_permanent,
+    'Temporary Employees': df_temp,
+    'People Info': df_ppl
+}
+
+# Convert to Excel
+excel_bytes = to_excel_multi(dfs_to_export)
+
+# Streamlit download button
+st.download_button(
+    label="📥 Download All Data (Excel)",
+    data=excel_bytes,
+    file_name="employee_data_all.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
